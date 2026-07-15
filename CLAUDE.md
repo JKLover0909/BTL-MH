@@ -6,7 +6,7 @@ Read `AGENTS.md` before planning, editing, running commands, or interpreting res
 
 - The project supports inspection prioritization only; it must not be represented as an automated regulatory decision-maker.
 - The prediction target is an establishment's next eligible inspection, with a failure definition and horizon registered before model evaluation.
-- The current scope is **Phase 1 — project foundation and governance only**. Do not OCR documents, preprocess data, produce derived artifacts, train models, or claim Graph ML results in this phase.
+- Phases 1–5 are implemented. Prefer the notebooks under `notebooks/` for interactive EDA/training/evaluation; keep reusable logic in `src/food_safety_gnn/`.
 - Raw input data is read-only. Derived data, graphs, checkpoints, embeddings, and reports must never overwrite it.
 - Do not commit raw data, credentials, local OCR output, generated artifacts, model weights, or other large binaries.
 - Define the prediction timestamp before feature engineering. Every feature and relation must be based only on information available **strictly before** that timestamp.
@@ -19,7 +19,7 @@ Read `AGENTS.md` before planning, editing, running commands, or interpreting res
 
 1. Identify the requested phase before acting.
 2. If work crosses into a later phase, stop and ask the project owner to approve that phase.
-3. During Phase 1, the permitted project files are only `.gitignore`, `AGENTS.md`, and `CLAUDE.md`. Do not modify `food-inspections.csv` or `X.pdf`; do not create derived data, OCR output, models, scripts, source packages, notebooks, or experiment directories.
+3. Do not modify `food-inspections.csv` or `X.pdf`. Derived data, OCR output, model weights, embeddings, and run logs remain local/ignored.
 4. Do not claim that a later phase has been completed until its requested outputs are created and verified.
 
 ## Required environment

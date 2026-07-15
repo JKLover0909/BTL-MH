@@ -1,0 +1,25 @@
+version: 1
+snapshot:
+  cutoff: "2016-12-31"
+  max_nodes: 8000
+  geo_k: 8
+  geo_radius_m: 750
+  facility_peer_cap: 8
+  zip_peer_cap: 8
+  history_k: 8
+  history_dim: 24
+training:
+  embedding_dim: 64
+  hidden_dim: 64
+  num_layers: 2
+  learning_rate: 0.001
+  epochs: 20
+  batch_size: 1024
+  num_negatives: 5
+  seed: 42
+  device: cuda:0
+output_directory: artifacts/phase4/v1
+notes:
+  - Train only on a pre-cutoff snapshot using inspections strictly before the cutoff.
+  - Same-day events are treated as simultaneous and excluded from prior features.
+  - Unsupervised contrastive loss never consumes inspection failure labels.

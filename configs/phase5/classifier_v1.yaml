@@ -1,0 +1,25 @@
+version: 1
+temporal_split:
+  train_end: "2016-12-31"
+  validation_end: "2017-12-31"
+  test_end: "2018-09-30"
+  target_horizon_days: 365
+classifier:
+  random_state: 42
+  class_weight: balanced
+  rf_estimators: 200
+  rf_max_depth: 12
+inputs:
+  phase3_directory: data/interim/phase3/v1
+  embeddings_path: artifacts/phase4/v1/entity_embeddings.parquet
+output_directory: artifacts/phase5/v1
+metrics:
+  primary: pr_auc
+  required:
+    - accuracy
+    - roc_auc
+    - f1
+    - pr_auc
+notes:
+  - Select the model on validation PR-AUC, then evaluate test once.
+  - Features are GraphSAGE embeddings only; labels remain next-inspection Fail within 365 days.

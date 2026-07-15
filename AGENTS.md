@@ -23,11 +23,11 @@ This repository supports research for **prioritizing food-safety inspections**, 
 
 Only begin a phase after the project owner approves it.
 
-1. **Phase 1 — current:** create `.gitignore`, `CLAUDE.md`, and `AGENTS.md`; establish raw-data governance and environment/CUDA/OCR policies.
-2. **Phase 2 — context extraction:** discover and validate Tesseract; extract text from `X.pdf`; save the result as `context_X.md` with extraction provenance.
-3. **Phase 3 — preprocessing:** inspect and clean `food-inspections.csv`; establish leakage-safe, time-aware data contracts; store graph-ready derived data in an efficient local format.
-4. **Phase 4 — unsupervised GraphSAGE:** define a temporally valid graph schema; train GraphSAGE embeddings on CUDA; save versioned local embeddings and run metadata.
-5. **Phase 5 — predictive modeling:** use embeddings in leakage-safe classifiers; evaluate inspection-failure probabilities using Accuracy, ROC-AUC, and F1-score (and imbalance-aware metrics).
+1. **Phase 1 — complete:** create `.gitignore`, `CLAUDE.md`, and `AGENTS.md`; establish raw-data governance and environment/CUDA/OCR policies.
+2. **Phase 2 — complete:** discover and validate Tesseract; extract text from `X.pdf`; save the result as `context_X.md` with extraction provenance.
+3. **Phase 3 — complete via notebook:** `notebooks/01_data_preprocessing.ipynb` performs EDA, cleaning, and Parquet graph-ready export.
+4. **Phase 4 — complete via notebook:** `notebooks/02_graphsage_embedding.ipynb` builds a temporal multi-relational graph and trains unsupervised GraphSAGE on CUDA.
+5. **Phase 5 — complete via notebook:** `notebooks/03_predictive_modeling.ipynb` trains leakage-safe classifiers on embeddings and reports Accuracy, ROC-AUC, F1, PR-AUC, and confusion matrix.
 
 ## Planned repository layout
 
