@@ -8,8 +8,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
@@ -19,8 +17,10 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
+from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from xgboost import XGBClassifier
 
 from food_safety_gnn.provenance import atomic_write_json, utc_timestamp
 
@@ -40,9 +40,14 @@ class ClassifierConfig:
     """Classifier training settings selected before test evaluation."""
 
     random_state: int = 42
-    class_weight: str = "balanced"
-    rf_estimators: int = 200
-    rf_max_depth: int = 12
+    xgb_n_estimators: int = 400
+    xgb_max_depth: int = 5
+    xgb_learning_rate: float = 0.05
+    xgb_subsample: float = 0.9
+    xgb_colsample_bytree: float = 0.9
+    xgb_min_child_weight: int = 5
+    mlp_hidden_layer_sizes: tuple[int, ...] = (128, 64)
+    mlp_max_iter: int = 200
 
 
 def assign_temporal_split(
@@ -84,7 +89,9 @@ def join_embeddings(
     labels: pd.DataFrame, embeddings: pd.DataFrame
 ) -> pd.DataFrame:
     """Join snapshot embeddings to labeled anchors by entity_id."""
-    embedding_cols = [column for column in embeddings.columns if column.startswith("emb_")]
+    embedding_cols = [
+        column for column in embeddings.columns if column.startswith("emb_")
+    ]
     if not embedding_cols:
         raise ValueError("Embedding table has no emb_* columns.")
     merged = labels.merge(
@@ -112,16 +119,25 @@ def _feature_matrix(frame: pd.DataFrame) -> tuple[np.ndarray, list[str]]:
     return matrix, feature_cols
 
 
+def _scale_pos_weight(y_train: np.ndarray) -> float:
+    positives = float(np.sum(y_train == 1))
+    negatives = float(np.sum(y_train == 0))
+    if positives <= 0:
+        return 1.0
+    return negatives / positives
+
+
 def train_classifiers(
     dataset: pd.DataFrame, config: ClassifierConfig
 ) -> dict[str, Any]:
-    """Train Random Forest and Logistic Regression on the training split only."""
+    """Train XGBoost (primary) and a small MLP comparator on the training split only."""
     train = dataset.loc[dataset["split"].eq("train")].copy()
     validation = dataset.loc[dataset["split"].eq("validation")].copy()
     test = dataset.loc[dataset["split"].eq("test")].copy()
     if train.empty or validation.empty or test.empty:
         raise ValueError(
-            "Temporal splits are empty. Adjust split cutoffs or ensure embeddings cover entities."
+            "Temporal splits are empty. Adjust split cutoffs or ensure embeddings "
+            "cover entities."
         )
 
     x_train, feature_names = _feature_matrix(train)
@@ -131,26 +147,36 @@ def train_classifiers(
     x_test, _ = _feature_matrix(test)
     y_test = test["target_label"].astype(int).to_numpy()
 
-    models = {
-        "logistic_regression": Pipeline(
+    pos_weight = _scale_pos_weight(y_train)
+    models: dict[str, Any] = {
+        "xgboost": XGBClassifier(
+            n_estimators=config.xgb_n_estimators,
+            max_depth=config.xgb_max_depth,
+            learning_rate=config.xgb_learning_rate,
+            subsample=config.xgb_subsample,
+            colsample_bytree=config.xgb_colsample_bytree,
+            min_child_weight=config.xgb_min_child_weight,
+            objective="binary:logistic",
+            eval_metric="aucpr",
+            tree_method="hist",
+            scale_pos_weight=pos_weight,
+            random_state=config.random_state,
+            n_jobs=-1,
+        ),
+        "mlp": Pipeline(
             steps=[
                 ("scaler", StandardScaler()),
                 (
                     "clf",
-                    LogisticRegression(
-                        max_iter=1000,
-                        class_weight=config.class_weight,
+                    MLPClassifier(
+                        hidden_layer_sizes=config.mlp_hidden_layer_sizes,
+                        max_iter=config.mlp_max_iter,
                         random_state=config.random_state,
+                        early_stopping=True,
+                        validation_fraction=0.1,
                     ),
                 ),
             ]
-        ),
-        "random_forest": RandomForestClassifier(
-            n_estimators=config.rf_estimators,
-            max_depth=config.rf_max_depth,
-            class_weight=config.class_weight,
-            random_state=config.random_state,
-            n_jobs=-1,
         ),
     }
 
@@ -163,6 +189,7 @@ def train_classifiers(
             "train_positive_rate": float(y_train.mean()),
             "validation_positive_rate": float(y_validation.mean()),
             "test_positive_rate": float(y_test.mean()),
+            "scale_pos_weight": float(pos_weight),
         },
         "models": {},
     }
@@ -170,25 +197,31 @@ def train_classifiers(
     best_model_name = None
     best_validation_pr_auc = -1.0
     fitted_models: dict[str, Any] = {}
+    best_thresholds: dict[str, float] = {}
 
     for name, model in models.items():
         model.fit(x_train, y_train)
         fitted_models[name] = model
         validation_proba = model.predict_proba(x_validation)[:, 1]
-        validation_pred = (validation_proba >= 0.5).astype(int)
-        validation_metrics = _binary_metrics(y_validation, validation_pred, validation_proba)
-        results["models"][name] = {
-            "validation": validation_metrics,
-        }
+        threshold = _best_f1_threshold(y_validation, validation_proba)
+        best_thresholds[name] = threshold
+        validation_pred = (validation_proba >= threshold).astype(int)
+        validation_metrics = _binary_metrics(
+            y_validation, validation_pred, validation_proba
+        )
+        validation_metrics["decision_threshold"] = float(threshold)
+        results["models"][name] = {"validation": validation_metrics}
         if validation_metrics["pr_auc"] > best_validation_pr_auc:
             best_validation_pr_auc = validation_metrics["pr_auc"]
             best_model_name = name
 
     assert best_model_name is not None
     selected = fitted_models[best_model_name]
+    selected_threshold = best_thresholds[best_model_name]
     test_proba = selected.predict_proba(x_test)[:, 1]
-    test_pred = (test_proba >= 0.5).astype(int)
+    test_pred = (test_proba >= selected_threshold).astype(int)
     test_metrics = _binary_metrics(y_test, test_pred, test_proba)
+    test_metrics["decision_threshold"] = float(selected_threshold)
     matrix = confusion_matrix(y_test, test_pred, labels=[0, 1])
     results["selected_model"] = best_model_name
     results["models"][best_model_name]["test"] = test_metrics
@@ -199,6 +232,7 @@ def train_classifiers(
         "fp": int(matrix[0, 1]),
         "fn": int(matrix[1, 0]),
         "tp": int(matrix[1, 1]),
+        "decision_threshold": float(selected_threshold),
     }
     results["test_predictions"] = pd.DataFrame(
         {
@@ -208,12 +242,27 @@ def train_classifiers(
             "probability": test_proba,
             "prediction": test_pred,
             "model": best_model_name,
+            "decision_threshold": selected_threshold,
         }
     )
     results["fitted_models"] = fitted_models
     results["created_at"] = utc_timestamp()
     results["config"] = asdict(config)
     return results
+
+
+def _best_f1_threshold(y_true: np.ndarray, y_proba: np.ndarray) -> float:
+    """Pick a validation threshold maximizing F1; lock before test evaluation."""
+    candidates = np.unique(np.quantile(y_proba, np.linspace(0.05, 0.95, 19)))
+    best_threshold = 0.5
+    best_f1 = -1.0
+    for threshold in candidates:
+        pred = (y_proba >= threshold).astype(int)
+        score = f1_score(y_true, pred, zero_division=0)
+        if score > best_f1:
+            best_f1 = score
+            best_threshold = float(threshold)
+    return best_threshold
 
 
 def _binary_metrics(
