@@ -1,0 +1,77 @@
+# Raw local source data (read-only; never commit)
+/food-inspections.csv
+/X.pdf
+
+# Local data products (keep schemas, split manifests, and configs trackable)
+/data/raw/
+/data/interim/
+/data/processed/
+/data/graphs/
+/data/ocr/
+
+# Experiment outputs and ML artifacts
+/context_X.md
+/artifacts/
+/outputs/
+/runs/
+/mlruns/
+/lightning_logs/
+/checkpoints/
+/models/
+/wandb/
+/ocr/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.npy
+*.npz
+*.pkl
+*.joblib
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.hypothesis/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environments
+.venv/
+venv/
+env/
+ENV/
+.conda/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+credentials.json
+service-account.json
+*.pem
+*.key
+
+# IDEs and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
