@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=78"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "food-safety-gnn"
+version = "0.1.0"
+description = "Leakage-aware Graph ML research pipeline for food-safety inspection risk."
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=2.2",
+  "pandas>=2.3",
+  "PyMuPDF>=1.24",
+  "pytesseract>=0.3",
+  "PyYAML>=6.0",
+  "pyarrow>=25.0",
+  "scikit-learn>=1.7",
+  "torch==2.11.0+cu128",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

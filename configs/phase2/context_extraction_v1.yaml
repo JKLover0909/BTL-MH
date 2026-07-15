@@ -1,0 +1,12 @@
+version: 1
+input_pdf: X.pdf
+output_markdown: context_X.md
+provenance_output: artifacts/phase2/context_extraction_provenance.json
+ocr:
+  enabled: true
+  language: eng
+  dpi: 200
+  environment_override: TESSERACT_CMD
+notes:
+  - Native PDF text and OCR are preserved separately by page.
+  - OCR remains pending human validation and must not be treated as authoritative.

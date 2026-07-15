@@ -1,0 +1,15 @@
+version: 1
+raw_input: food-inspections.csv
+output_directory: data/interim/phase3/v1
+entity_resolution:
+  primary_key: normalized_license_address_zip
+  fallback_key: normalized_dba_name_address_zip
+  version: license_address_zip_v1
+cleaning:
+  duplicate_policy: drop_exact_duplicates_only
+  conflicting_inspection_id_policy: fail
+  target_horizon_days: 365
+outcome_contract:
+  positive: [Fail]
+  negative: [Pass, Pass w/ Conditions]
+  excluded: [Out of Business, No Entry, Not Ready, Business Not Located]
